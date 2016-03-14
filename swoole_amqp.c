@@ -136,10 +136,8 @@ static void swoole_amqp_on_data(swoole_amqp_client_t *client) {
         if (reply.reply_type != AMQP_RESPONSE_NORMAL) {
             switch(reply.library_error) {
                 case AMQP_STATUS_TIMEOUT:
-                    swTrace("Have no data to read right now.\n");
                     return ;
                 case AMQP_STATUS_SOCKET_ERROR:
-                    swTrace("A socket error is happened.");
                 case AMQP_STATUS_SOCKET_CLOSED:
                 case AMQP_STATUS_CONNECTION_CLOSED:
                     /* get socket error */
@@ -148,7 +146,6 @@ static void swoole_amqp_on_data(swoole_amqp_client_t *client) {
                 case AMQP_STATUS_UNEXPECTED_STATE:
                 default:
                     frameStatus = amqp_simple_wait_frame_noblock(conn, &frame, &timeout_zero);
-                    swTrace("recv a library_error:%d, status: %d\n", reply.library_error, frameStatus);
                     if (!swoole_amqp_handle_frame(client, &frame, frameStatus)) {
                         return;
                     }
@@ -172,17 +169,14 @@ static void swoole_amqp_on_data(swoole_amqp_client_t *client) {
 
             zval **args[] = {&zmessage};
             zval *retval;
-            swTrace("(1) ref of zmessage:%d\n", zmessage->refcount__gc);
             if (sw_call_user_function_ex(EG(function_table), NULL, client->on_consume, &retval, 1, args, 0, NULL) != SUCCESS) {
                 swoole_php_fatal_error(E_WARNING, "execute on consume callback failure.");
             }
 
-            swTrace("(2) ref of zmessage:%d\n", zmessage->refcount__gc);
             if (retval != NULL) {
                 sw_zval_ptr_dtor(&retval);
             }
             sw_zval_ptr_dtor(&zmessage);
-            swTrace("(3) ref of zmessage:%d, callback:%d\n", zmessage->refcount__gc, client->on_consume->refcount__gc);
         }
     }
 }
@@ -286,7 +280,6 @@ static int swoole_amqp_handle_frame(swoole_amqp_client_t *client, amqp_frame_t *
 
 static int swoole_amqp_handle_reply(swoole_amqp_client_t *client, amqp_rpc_reply_t *reply, int channel) {
     if (reply->reply_type == AMQP_RESPONSE_NORMAL) {
-        swTrace("reply is normal\n");
         return TRUE;
     }
 
@@ -296,7 +289,6 @@ static int swoole_amqp_handle_reply(swoole_amqp_client_t *client, amqp_rpc_reply
                 return FALSE;
                 /* close connection for other error */
             default:
-                swTrace("recv frame error, will close connection\n");
                 swoole_amqp_close_connection(client, 1);
                 return FALSE;
         }
@@ -307,11 +299,9 @@ static int swoole_amqp_handle_reply(swoole_amqp_client_t *client, amqp_rpc_reply
     /* AMQP_RESPONSE_SERVER_EXCEPTION */
     switch(reply->reply.id) {
         case AMQP_CONNECTION_CLOSE_METHOD:
-            swTrace("recv a connection close method\n");
             swoole_amqp_close_connection(client, 1);
             return FALSE;
         case AMQP_CHANNEL_CLOSE_METHOD:
-            swTrace("recv a channel:(%d) close method\n", channel);
             if (channel <= 0) {
                 return FALSE;
             }
@@ -319,7 +309,6 @@ static int swoole_amqp_handle_reply(swoole_amqp_client_t *client, amqp_rpc_reply
             /* TODO more */
             break;
         default:
-            swTrace("Unhandle method:%d\n", reply->reply.id);
             break;
     }
 
@@ -516,12 +505,12 @@ static PHP_METHOD(swoole_amqp, createChannel) {
 
     swoole_amqp_client_t *client = swoole_get_object(object);
     if (!client->connected) {
-        swoole_php_fatal_error(E_WARNING, "amqp is not connected to server.");
+        swoole_php_error(E_WARNING, "amqp is not connected to server.");
         RETURN_FALSE;
     }
 
     if (zend_hash_index_exists(client->opened_channels, channel)) {
-        swoole_php_fatal_error(E_WARNING, "Channel %d is opened, can not open a channel twice.", channel);
+        swoole_php_error(E_WARNING, "Channel %d is opened, can not open a channel twice.", channel);
         RETURN_FALSE;
     }
 
@@ -556,7 +545,7 @@ static PHP_METHOD(swoole_amqp, declareExchange) {
     swoole_amqp_client_t *client = swoole_get_object(object);
 
     if (channel <= 0 || !zend_hash_index_exists(client->opened_channels, channel)) {
-        swoole_php_fatal_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
+        swoole_php_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
         RETURN_FALSE;
     }
 
@@ -564,7 +553,7 @@ static PHP_METHOD(swoole_amqp, declareExchange) {
     amqp_exchange_declare_ok_t *ok = amqp_exchange_declare(client->connection, channel, amqp_cstring_bytes(exchange_name), amqp_cstring_bytes(type),
                 passive, durable, auto_delete, internal, empty_args);
     if (!ok) {
-        swoole_php_fatal_error(E_WARNING, "Failure to declare exchange:%s.\n", exchange_name);
+        swoole_php_error(E_WARNING, "Failure to declare exchange:%s.\n", exchange_name);
         amqp_rpc_reply_t reply = amqp_get_rpc_reply(client->connection);
         swoole_amqp_handle_reply(client, &reply, channel);
         RETURN_FALSE;
@@ -588,7 +577,7 @@ static PHP_METHOD(swoole_amqp, deleteExchange) {
     swoole_amqp_client_t *client = swoole_get_object(object);
 
     if (channel <= 0 || !zend_hash_index_exists(client->opened_channels, channel)) {
-        swoole_php_fatal_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
+        swoole_php_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
         RETURN_FALSE;
     }
 
@@ -619,7 +608,7 @@ static PHP_METHOD(swoole_amqp, bindExchange) {
     swoole_amqp_client_t *client = swoole_get_object(object);
 
     if (channel <= 0 || !zend_hash_index_exists(client->opened_channels, channel)) {
-        swoole_php_fatal_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
+        swoole_php_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
         RETURN_FALSE;
     }
 
@@ -649,7 +638,7 @@ static PHP_METHOD(swoole_amqp, unbindExchange) {
     swoole_amqp_client_t *client = swoole_get_object(object);
 
     if (channel <= 0 || !zend_hash_index_exists(client->opened_channels, channel)) {
-        swoole_php_fatal_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
+        swoole_php_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
         RETURN_FALSE;
     }
 
@@ -679,7 +668,7 @@ static PHP_METHOD(swoole_amqp, declareQueue) {
 
     swoole_amqp_client_t *client = swoole_get_object(object);
     if (channel <= 0 || !zend_hash_index_exists(client->opened_channels, channel)) {
-        swoole_php_fatal_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
+        swoole_php_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
         RETURN_FALSE;
     }
 
@@ -708,7 +697,7 @@ static PHP_METHOD(swoole_amqp, purgeQueue) {
 
     swoole_amqp_client_t *client = swoole_get_object(object);
     if (channel <= 0 || !zend_hash_index_exists(client->opened_channels, channel)) {
-        swoole_php_fatal_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
+        swoole_php_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
         RETURN_FALSE;
     }
 
@@ -740,7 +729,7 @@ static PHP_METHOD(swoole_amqp, deleteQueue) {
     swoole_amqp_client_t *client = swoole_get_object(object);
 
     if (channel <= 0 || !zend_hash_index_exists(client->opened_channels, channel)) {
-        swoole_php_fatal_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
+        swoole_php_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
         RETURN_FALSE;
     }
 
@@ -770,7 +759,7 @@ static PHP_METHOD(swoole_amqp, bindQueue) {
 
     swoole_amqp_client_t *client = swoole_get_object(object);
     if (channel <= 0 || !zend_hash_index_exists(client->opened_channels, channel)) {
-        swoole_php_fatal_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
+        swoole_php_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
         RETURN_FALSE;
     }
 
@@ -799,7 +788,7 @@ static PHP_METHOD(swoole_amqp, unbindQueue) {
 
     swoole_amqp_client_t *client = swoole_get_object(object);
     if (channel <= 0 || !zend_hash_index_exists(client->opened_channels, channel)) {
-        swoole_php_fatal_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
+        swoole_php_error(E_WARNING, "Channel %d is not a available channle.\n", channel);
         RETURN_FALSE;
     }
 
@@ -838,7 +827,8 @@ static PHP_METHOD(swoole_amqp, qos) {
 
     swoole_amqp_client_t *client = swoole_get_object(object);
     if (!client->connected) {
-        swoole_php_fatal_error(E_WARNING, "amqp is not connected to server.");
+        swoole_php_error(E_WARNING, "amqp is not connected to server.");
+        RETURN_FALSE;
     }
 
     if (size < 0) {
@@ -848,7 +838,6 @@ static PHP_METHOD(swoole_amqp, qos) {
         count = 0;
     }
 
-    swTrace("channel:%ld, size:%d, count:%d, global:%d\n", channel, size, count, global);
     amqp_basic_qos_ok_t *ok = amqp_basic_qos(client->connection, channel, size, count, global);
 
     RETURN_BOOL((ok != NULL));
@@ -889,12 +878,12 @@ static PHP_METHOD(swoole_amqp, consume) {
     }
 
     if (!client->on_consume) {
-        swoole_php_fatal_error(E_WARNING, "Can not starts consuming before set the consuming callback.");
+        swoole_php_error(E_WARNING, "Can not starts consuming before set the consuming callback.");
         RETURN_FALSE;
     }
 
     if (channel <= 0 || !zend_hash_index_exists(client->opened_channels, channel)) {
-        swoole_php_fatal_error(E_WARNING, "Channel %ld is not opened, can not consume on it.\n", channel);
+        swoole_php_error(E_WARNING, "Channel %ld is not opened, can not consume on it.\n", channel);
         RETURN_FALSE;
     }
 
@@ -966,7 +955,7 @@ static PHP_METHOD(swoole_amqp, ack) {
 
     swoole_amqp_client_t *client = swoole_get_object(object);
     if (!client->connected) {
-        swoole_php_fatal_error(E_WARNING, "Can not ack message, client is not connected to server.");
+        swoole_php_error(E_WARNING, "Can not ack message, client is not connected to server.");
         RETURN_FALSE;
     }
 
@@ -986,17 +975,17 @@ static PHP_METHOD(swoole_amqp, cancel) {
     }
 
     if (channel <= 0 || !zend_hash_index_exists(client->opened_channels, channel)) {
-        swoole_php_fatal_error(E_WARNING, "Channel %ld is not a available channle.\n", channel);
+        swoole_php_error(E_WARNING, "Channel %ld is not a available channle.\n", channel);
         RETURN_FALSE;
     }
 
     if (tag_len <= 0) {
-        swoole_php_fatal_error(E_WARNING, "\"%s\" is not a valid consumer tag.\n", consumer_tag);
+        swoole_php_error(E_WARNING, "\"%s\" is not a valid consumer tag.\n", consumer_tag);
         RETURN_FALSE;
     }
 
     if (!client->connected) {
-        swoole_php_fatal_error(E_WARNING, "Client is not connected to server.\n");
+        swoole_php_error(E_WARNING, "Client is not connected to server.\n");
         RETURN_FALSE;
     }
 
@@ -1010,11 +999,9 @@ static PHP_METHOD(swoole_amqp, close) {
     swoole_amqp_client_t *client = swoole_get_object(object);
 
     if (!client->connected) {
-        swoole_php_fatal_error(E_WARNING, "Client is not connected to server, can not close it.");
+        swoole_php_error(E_WARNING, "Client is not connected to server, can not close it.");
         RETURN_FALSE;
     }
-
-    swTrace("Start close amqp client.\n");
 
     swoole_amqp_close_connection(client, 0);
 }

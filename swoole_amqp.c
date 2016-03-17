@@ -108,7 +108,7 @@ static int swoole_amqp_on_channel_close(swoole_amqp_client_t *client, int channe
     zval *retval;
 
     if (sw_call_user_function_ex(EG(function_table), NULL, client->on_channel_close, &retval, 1, args, 0, NULL) != SUCCESS) {
-        swoole_php_fatal_error(E_WARNING, "execute on channel close callback failure.");
+        swoole_php_error(E_WARNING, "execute on channel close callback failure.");
     }
     sw_zval_ptr_dtor(&zchan);
 
@@ -317,7 +317,6 @@ static int swoole_amqp_handle_reply(swoole_amqp_client_t *client, amqp_rpc_reply
 
 static PHP_METHOD(swoole_amqp, __construct);
 static PHP_METHOD(swoole_amqp, __destruct);
-static PHP_METHOD(swoole_amqp, set);
 static PHP_METHOD(swoole_amqp, connect);
 static PHP_METHOD(swoole_amqp, createChannel);
 static PHP_METHOD(swoole_amqp, consume);
@@ -433,9 +432,6 @@ static PHP_METHOD(swoole_amqp, __destruct) {
 
     swoole_set_object(object, NULL);
     efree(client);
-}
-
-static PHP_METHOD(swoole_amqp, set) {
 }
 
 static PHP_METHOD(swoole_amqp, connect) {

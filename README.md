@@ -38,28 +38,56 @@ Most operation are base on channel.
 
 #### `deleteExchange`
 
+`deleteExchange(int $channel, string $exchange[, bool ifNotUsed)`
+
 #### `bindExchange`
+
+`bindExchange(int $channel, string $destination, string $source, string $routing)`
 
 #### `unbindExchange`
 
+`unbindExchange(int $channel, string $destination, string $source, string $routine)`
+
 #### `declareQueue`
+
+`declareQueue(int $channel, string $queueName[, bool passive = false, bool durable = false, bool autoDelete = false, bool exclusive = false])`
 
 #### `purgeQueue`
 
+`purgeQueue(int $channel, string $queueName)`
+
 #### `deleteQueue`
+
+`deleteQueue(int $channel, string $queueName[, bool $ifUnused = false, bool $ifEmpty = false])`
 
 #### `bindQueue`
 
+`bindQueue(int $channel, string $queueName, string $exchangeName, string $routing)`
+
 #### `unbindQueue`
+
+`unbindQueue(int $channel, string $queueName, string $exchangeName, string $routing)`
 
 #### `qos`
 
+`qos(int $channel, int $size, $count[, $global = false])`
+
 #### `consume`
+
+`consume(int $channel, string $queueName, string $tag, bool $noLocal, bool $ack, bool exclusive)`
 
 #### `on`
 
+`on(string $event, callable $callback)`
+
 #### `ack`
+
+`ack(int $channel, int $deliveryTag[, bool $multiple = false])`
 
 #### `cancel`
 
+`cancel(int $channel, string $consumerTag)`
+
 #### `close`
+
+`close()`

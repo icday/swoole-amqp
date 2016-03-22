@@ -344,7 +344,6 @@ zend_class_entry* swoole_amqp_class_entry_ptr;
 static const zend_function_entry swoole_amqp_methods[] = {
     PHP_ME(swoole_amqp, __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)
     PHP_ME(swoole_amqp, __destruct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_DTOR)
-    PHP_ME(swoole_amqp, set, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_amqp, connect, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_amqp, createChannel, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_amqp, qos, NULL, ZEND_ACC_PUBLIC)

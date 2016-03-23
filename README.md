@@ -1,14 +1,33 @@
 # swoole-amqp
 
-An async AMQP client base on swoole
+An asynchronous PHP AMQP client base on swoole.
 
-# Classes
+## Classes
 
-## swoole_amqp
+### swoole_amqp
 
 Class `swoole_amqp`(`Swoole\\Amqp` if `swoole.use_namespace=On` was set in `php.ini`) represents client of amqp.
 
-### Methods
+Methods list of `swoole_amqp`:
+
+- `__construct`
+- `connect`
+- `createChannel`
+- `declareExchange`
+- `deleteExchange`
+- `bindExchange`
+- `unbindExchange`
+- `declareQueue`
+- `purgeQueue`
+- `deleteQueue`
+- `bindQueue`
+- `unbindQueue`
+- `qos`
+- `consume`
+- `on`
+- `ack`
+- `cancel`
+- `close`
 
 #### `__construct`
 
@@ -34,11 +53,11 @@ Most operation are base on channel.
 
 #### `declareExchange`
 
-`declareExchange(int $channel, string $exchange, string $type[, $passive, $durable, $autoDelete, $internal])`
+`declareExchange(int $channel, string $exchange, string $type[, bool $passive, bool $durable, bool $autoDelete, bool $internal])`
 
 #### `deleteExchange`
 
-`deleteExchange(int $channel, string $exchange[, bool ifNotUsed)`
+`deleteExchange(int $channel, string $exchange[, bool ifNotUsed])`
 
 #### `bindExchange`
 
@@ -70,7 +89,7 @@ Most operation are base on channel.
 
 #### `qos`
 
-`qos(int $channel, int $size, $count[, $global = false])`
+`qos(int $channel, int $size, $count[, bool $global = false])`
 
 #### `consume`
 
@@ -79,6 +98,27 @@ Most operation are base on channel.
 #### `on`
 
 `on(string $event, callable $callback)`
+
+`$event` could be `consume` / `channel_close` / `close`.
+
+`$callback` must be **String, Array or Closure** that specifies a function.
+
+For event `consume`, callback will be given an array value likes:
+
+``` php
+Array
+(
+    [channel] => 1
+    [delivery_tag] => 1
+    [redelivered] => 0
+    [consumer_tag] => amq.ctag-gGpIz8Cc-L5tv9GRmjehfA
+    [exchange] => exchange_name
+    [message] => body
+    [routing_key] => the-routing-key
+)
+```
+
+For event `channel_close`, callback will be given a integer specifies the channel.
 
 #### `ack`
 
@@ -91,3 +131,32 @@ Most operation are base on channel.
 #### `close`
 
 `close()`
+
+Closing the connection. This operation will destroy all the channel on this connection then close connection.
+
+# Example
+
+``` php
+$rabbitmq = new swoole_amqp('127.0.0.1', 5672);
+$rabbitmq->connect('vhost', 'guest', 'guest');
+$rabbitmq->createChannel(1);
+$rabbitmq->qos(1, 0, 10, 1);
+$rabbitmq->on('consume', function($msg) {
+    print_r($msg);
+});
+$rabbitmq->on('close', function() {
+    echo "on close\n";
+});
+$rabbitmq->on('channel_close', function($channel) {
+    echo "channel: $channel is closed\n";
+});
+
+$res = $rabbitmq->declareExchange(1, 'exchange.direct', 'direct');
+$res = $rabbitmq->declareQueue(1, 'a.queue.name', 0, 1);
+
+$rabbitmq->bindQueue(1, 'a.queue.name', 'exchange.direct', 'a.queue.name');
+
+$tag = $rabbitmq->consume(1, 'a.queue.name', '', 0, 1, 0);
+```
+
+
